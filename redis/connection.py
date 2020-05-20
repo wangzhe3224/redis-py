@@ -1230,10 +1230,13 @@ class ConnectionPool(object):
         "Releases the connection back to the pool"
         self._checkpid()
         with self._lock:
-            if connection.pid != self.pid:
+            if not self.pool_owns_connection(connection):
                 return
             self._in_use_connections.remove(connection)
             self._available_connections.append(connection)
+
+    def pool_owns_connection(self, connection):
+        return connection.pid == self.pid
 
     def disconnect(self):
         "Disconnects all connections in the pool"
@@ -1375,7 +1378,7 @@ class BlockingConnectionPool(ConnectionPool):
         "Releases the connection back to the pool."
         # Make sure we haven't changed process.
         self._checkpid()
-        if connection.pid != self.pid:
+        if not self.pool_owns_connection(connection):
             return
 
         # Put the connection back into the pool.
