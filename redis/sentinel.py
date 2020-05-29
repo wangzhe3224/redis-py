@@ -95,16 +95,19 @@ class SentinelConnectionPool(ConnectionPool):
         self.master_address = None
         self.slave_rr_counter = None
 
+    def pool_owns_connection(self, connection):
+        check = not self.is_master or \
+                (self.is_master and
+                 self.master_address == (connection.host, connection.port))
+        parent = super(SentinelConnectionPool, self)
+        return check and parent.pool_owns_connection(connection)
+
     def get_master_address(self):
         master_address = self.sentinel_manager.discover_master(
             self.service_name)
         if self.is_master:
-            if self.master_address is None:
+            if self.master_address != master_address:
                 self.master_address = master_address
-            elif master_address != self.master_address:
-                # Master address changed, disconnect all clients in this pool
-                self.master_address = master_address
-                self.disconnect()
         return master_address
 
     def rotate_slaves(self):

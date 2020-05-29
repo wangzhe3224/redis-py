@@ -1231,6 +1231,10 @@ class ConnectionPool(object):
         self._checkpid()
         with self._lock:
             if not self.pool_owns_connection(connection):
+                # pool doesn't own this connection. do not add it back
+                # to the pool and decrement the count so that another
+                # connection can take its place if needed
+                self._created_connections -= 1
                 return
             self._in_use_connections.remove(connection)
             self._available_connections.append(connection)
@@ -1379,6 +1383,11 @@ class BlockingConnectionPool(ConnectionPool):
         # Make sure we haven't changed process.
         self._checkpid()
         if not self.pool_owns_connection(connection):
+            # pool doesn't own this connection. do not add it back
+            # to the pool. instead add a None value which is a placeholder
+            # that will cause the pool to recreate the connection if
+            # its needed.
+            self.pool.put_nowait(None)
             return
 
         # Put the connection back into the pool.
