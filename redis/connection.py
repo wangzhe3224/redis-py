@@ -1230,14 +1230,22 @@ class ConnectionPool(object):
         "Releases the connection back to the pool"
         self._checkpid()
         with self._lock:
-            if not self.pool_owns_connection(connection):
+            try:
+                self._in_use_connections.remove(connection)
+            except KeyError:
+                # Gracefully fail when a connection is returned to this pool
+                # that the pool doesn't actually own
+                pass
+
+            if self.pool_owns_connection(connection):
+                self._available_connections.append(connection)
+            else:
                 # pool doesn't own this connection. do not add it back
                 # to the pool and decrement the count so that another
                 # connection can take its place if needed
                 self._created_connections -= 1
+                connection.disconnect()
                 return
-            self._in_use_connections.remove(connection)
-            self._available_connections.append(connection)
 
     def pool_owns_connection(self, connection):
         return connection.pid == self.pid
@@ -1387,6 +1395,7 @@ class BlockingConnectionPool(ConnectionPool):
             # to the pool. instead add a None value which is a placeholder
             # that will cause the pool to recreate the connection if
             # its needed.
+            connection.disconnect()
             self.pool.put_nowait(None)
             return
 
