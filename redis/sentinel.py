@@ -95,12 +95,12 @@ class SentinelConnectionPool(ConnectionPool):
         self.master_address = None
         self.slave_rr_counter = None
 
-    def pool_owns_connection(self, connection):
+    def owns_connection(self, connection):
         check = not self.is_master or \
                 (self.is_master and
                  self.master_address == (connection.host, connection.port))
         parent = super(SentinelConnectionPool, self)
-        return check and parent.pool_owns_connection(connection)
+        return check and parent.owns_connection(connection)
 
     def get_master_address(self):
         master_address = self.sentinel_manager.discover_master(
