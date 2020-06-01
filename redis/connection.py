@@ -1250,13 +1250,23 @@ class ConnectionPool(object):
     def owns_connection(self, connection):
         return connection.pid == self.pid
 
-    def disconnect(self):
-        "Disconnects all connections in the pool"
+    def disconnect(self, inuse_connections=True):
+        """
+        Disconnects connections in the pool
+
+        If ``inuse_connections`` is True, disconnect connections that are
+        current in use, potentially by other threads. Otherwise only disconnect
+        connections that are idle in the pool.
+        """
         self._checkpid()
         with self._lock:
-            all_conns = chain(self._available_connections,
-                              self._in_use_connections)
-            for connection in all_conns:
+            if inuse_connections:
+                connections = chain(self._available_connections,
+                                    self._in_use_connections)
+            else:
+                connections = self._available_connections
+
+            for connection in connections:
                 connection.disconnect()
 
 

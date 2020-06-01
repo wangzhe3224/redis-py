@@ -108,6 +108,9 @@ class SentinelConnectionPool(ConnectionPool):
         if self.is_master:
             if self.master_address != master_address:
                 self.master_address = master_address
+                # disconnect any idle connections so that they reconnect
+                # to the new master the next time that they are used.
+                self.disconnect(inuse_connections=False)
         return master_address
 
     def rotate_slaves(self):
