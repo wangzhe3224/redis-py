@@ -9,8 +9,13 @@ from string import ascii_letters
 from redis.client import parse_info
 from redis import exceptions
 
-from .conftest import (skip_if_server_version_lt, skip_if_server_version_gte,
-                       skip_unless_arch_bits, REDIS_6_VERSION)
+from .conftest import (
+    _get_client,
+    REDIS_6_VERSION,
+    skip_if_server_version_gte,
+    skip_if_server_version_lt,
+    skip_unless_arch_bits,
+)
 
 
 @pytest.fixture()
@@ -206,20 +211,20 @@ class TestRedisCommands:
                       keys=['cache:*'], nopass=True)
         r.acl_log_reset()
 
-        r_test = redis.Redis(host='master', port=6379, db=9,
-                             username=username)
+        user_client = _get_client(redis.Redis, request, flushdb=False,
+                                  username=username)
 
         # Valid operation and key
-        r_test.set('cache:0', 1)
-        r_test.get('cache:0')
+        assert user_client.set('cache:0', 1)
+        assert user_client.get('cache:0') == b'1'
 
         # Invalid key
         with pytest.raises(exceptions.NoPermissionError):
-            r_test.get('violated_cache:0')
+            user_client.get('violated_cache:0')
 
         # Invalid operation
         with pytest.raises(exceptions.NoPermissionError):
-            r_test.hset('cache:0', 'hkey', 'hval')
+            user_client.hset('cache:0', 'hkey', 'hval')
 
         assert isinstance(r.acl_log(), list)
         assert len(r.acl_log()) == 2
